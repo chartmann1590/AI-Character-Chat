@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Home - Character AI Clone{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-md-8">
+    <h2>Your Chatrooms</h2>
+    {% if rooms %}
+      <ul class="list-group mb-4">
+        {% for room in rooms %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <a href="{{ url_for('room', room_id=room.id) }}" class="text-decoration-none">
+              <strong>{{ room.title }}</strong><br>
+              <small class="text-muted">{{ room.description }}</small>
+            </a>
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('add_bot', room_id=room.id) }}">Add Bot</a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>No chatrooms available. Create one below!</p>
+    {% endif %}
+  </div>
+  <div class="col-md-4">
+    <h2>Create New Chatroom</h2>
+    <form action="{{ url_for('add_room') }}" method="POST">
+      <div class="mb-3">
+        <label for="title" class="form-label">Room Title</label>
+        <input type="text" class="form-control" id="title" name="title" required>
+      </div>
+      <div class="mb-3">
+        <label for="description" class="form-label">Room Description</label>
+        <textarea class="form-control" id="description" name="description" rows="3" required></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary">Create Chatroom</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

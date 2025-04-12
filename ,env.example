@@ -1,0 +1,3 @@
+SECRET_KEY=your_secret_key_here
+DATABASE_URL=sqlite:///app.db
+OLLAMA_API_URL=http://localhost:11434/api/chat

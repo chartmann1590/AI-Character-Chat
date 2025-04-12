@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Add Bot - Character AI Clone{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-md-8 offset-md-2">
+    <h2>Add a New Bot</h2>
+    <p class="text-muted">
+      Create your bot by providing a name (or have one generated for you), a detailed system prompt (persona) that will guide its behavior, a short bio, and an optional profile picture.
+      Also, select the Ollama model this bot will use when chatting.
+    </p>
+    <!-- Button to trigger modal for generating bot bio and name -->
+    <button type="button" class="btn btn-info mb-3" data-bs-toggle="modal" data-bs-target="#bioModal">
+      Generate Bot Name and Bio from Idea
+    </button>
+    <!-- Modal for inputting bot idea -->
+    <div class="modal fade" id="bioModal" tabindex="-1" aria-labelledby="bioModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="bioModalLabel">Generate Bot Name and Bio</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p>Enter a few lines describing the bot you wish to create. The system will generate a complete character bio along with a creative name for the bot.</p>
+            <textarea id="botIdea" class="form-control" rows="4" placeholder="Enter bot idea here..."></textarea>
+            <div id="genStatus" class="mt-2 text-muted" style="display:none;">Generating name and bio...please wait.</div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button id="generateBioBtn" type="button" class="btn btn-primary">Generate</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Main form for adding a bot -->
+    <form action="{{ url_for('add_bot', room_id=room_id) }}" method="POST" enctype="multipart/form-data">
+      <div class="mb-3">
+        <label for="name" class="form-label">Bot Name</label>
+        <input type="text" class="form-control" id="name" name="name" placeholder="E.g., OracleBot" required>
+      </div>
+      <div class="mb-3">
+        <label for="persona" class="form-label">System Prompt / Persona</label>
+        <textarea class="form-control" id="persona" name="persona" rows="4" placeholder="Describe your bot’s personality, role, and behavior..." required></textarea>
+      </div>
+      <div class="mb-3">
+        <label for="bio" class="form-label">Bot Bio</label>
+        <textarea class="form-control" id="bio" name="bio" rows="3" placeholder="Write a short bio for your bot"></textarea>
+      </div>
+      <div class="mb-3">
+        <label for="profile_pic" class="form-label">Profile Picture</label>
+        <input type="file" class="form-control" id="profile_pic" name="profile_pic" accept="image/*">
+      </div>
+      <div class="mb-3">
+        <label for="model" class="form-label">Select Ollama Model</label>
+        <select class="form-select" id="model" name="model" required>
+          {% if models|length > 0 %}
+            {% for model in models %}
+              <option value="{{ model.name }}">{{ model.name }}</option>
+            {% endfor %}
+          {% else %}
+            <option value="llama3.2" selected>llama3.2</option>
+          {% endif %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-success">Add Bot</button>
+    </form>
+    <div class="mt-3">
+      <a href="{{ url_for('room', room_id=room_id) }}" class="btn btn-secondary">&larr; Back to Chatroom</a>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.getElementById("generateBioBtn").addEventListener("click", async function() {
+      const botIdea = document.getElementById("botIdea").value.trim();
+      if(!botIdea) {
+          alert("Please enter a description for your bot idea.");
+          return;
+      }
+      // Show generating status.
+      const genStatus = document.getElementById("genStatus");
+      genStatus.style.display = "block";
+      genStatus.textContent = "Generating name and bio...please wait.";
+      
+      try {
+          const response = await fetch("{{ url_for('generate_bot_bio') }}", {
+              method: "POST",
+              headers: {
+                  "Content-Type": "application/x-www-form-urlencoded"
+              },
+              body: new URLSearchParams({
+                  input_text: botIdea
+              })
+          });
+          const data = await response.json();
+          if(data.error) {
+              alert("Error generating data: " + data.error);
+          } else {
+              // Auto-fill the bot name, persona, and bio fields.
+              document.getElementById("name").value = data.name;
+              document.getElementById("persona").value = data.bio;
+              document.getElementById("bio").value = data.bio;
+          }
+      } catch (error) {
+          console.error("Error generating bot name and bio:", error);
+          alert("An error occurred while generating the data.");
+      }
+      genStatus.style.display = "none";
+      // Close the modal (using Bootstrap's modal methods)
+      var bioModalEl = document.getElementById("bioModal");
+      var bioModal = bootstrap.Modal.getInstance(bioModalEl);
+      bioModal.hide();
+  });
+</script>
+{% endblock %}

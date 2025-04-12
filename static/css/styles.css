@@ -1,0 +1,257 @@
+/* Reset common elements */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  
+  /* Global Styles */
+  body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    background-color: #f5f7fa;
+    color: #333;
+    line-height: 1.6;
+  }
+  
+  /* Container & Layout */
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  
+  /* Navbar Styling */
+  .navbar {
+    background-color: #2b2f33 !important;
+    border-bottom: 1px solid #444;
+  }
+  
+  .navbar-brand {
+    font-size: 20px;
+    font-weight: bold;
+  }
+  
+  /* Header Section */
+  .header {
+    background: linear-gradient(135deg, #4a90e2, #50e3c2);
+    color: #fff;
+    padding: 40px 20px;
+    text-align: center;
+  }
+  
+  /* Typography */
+  h1, h2, h3, h4, h5, h6 {
+    color: #2b2f33;
+    margin-bottom: 15px;
+  }
+  
+  /* Form Elements */
+  form input[type="text"],
+  form textarea,
+  form select {
+    width: 100%;
+    border: 1px solid #ccc;
+    padding: 10px;
+    margin-top: 5px;
+    border-radius: 4px;
+    font-size: 16px;
+  }
+  
+  form input[type="file"] {
+    border: none;
+  }
+  
+  .form-label {
+    font-weight: bold;
+    margin-bottom: 5px;
+    display: block;
+  }
+  
+  /* Buttons */
+  .btn-primary,
+  .btn-success,
+  .btn-secondary {
+    border-radius: 4px;
+    padding: 10px 20px;
+    font-size: 16px;
+    transition: background-color 0.2s ease-in-out;
+  }
+  
+  .btn-primary:hover {
+    background-color: #357ab8;
+  }
+  
+  .btn-success:hover {
+    background-color: #379e6b;
+  }
+  
+  .btn-secondary:hover {
+    background-color: #5a6268;
+  }
+  
+  /* Chat Window Styles */
+  #chatWindow {
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 20px;
+    height: 400px;
+    overflow-y: auto;
+  }
+  
+  /* Chat Message Container */
+  .chat-message {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 10px;
+  }
+  
+  /* Chat Bubble Styles */
+  .chat-bubble {
+    padding: 10px 15px;
+    border-radius: 20px;
+    max-width: 75%;
+    position: relative;
+  }
+  
+  /* Profile Picture in Chat */
+  .chat-profile-pic {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid #ccc;
+    margin-right: 10px;
+  }
+  
+  /* User vs. Bot Chat Bubbles */
+  .chat-bubble.user {
+    background-color: #4a90e2;
+    color: #fff;
+    align-self: flex-end;
+  }
+  .chat-bubble.assistant {
+    background-color: #e6e6e6;
+    color: #333;
+    align-self: flex-start;
+  }
+  
+  /* Timestamp styling */
+  .message-timestamp {
+    font-size: 10px;
+    color: #888;
+    margin-top: 3px;
+  }
+  
+  /* Bot Profile Card Collapse Styling */
+  .bot-profile-header {
+    background-color: #f0f0f0;
+    padding: 10px 15px;
+    cursor: pointer;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  }
+  .bot-profile-body {
+    padding: 15px;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+  }
+  
+  /* Profile Picture Styling */
+  .profile-pic {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 2px solid #ddd;
+  }
+  
+  /* Card Styles (for additional info) */
+  .card {
+    border: none;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    background-color: #fff;
+  }
+  
+  /* Custom scrollbar for chat window */
+  #chatWindow::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  #chatWindow::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
+  
+  #chatWindow::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+  }
+  
+  #chatWindow::-webkit-scrollbar-thumb:hover {
+    background: #555;
+  }
+
+  /* Align user messages to the right */
+.chat-message.user-message {
+    display: flex;
+    flex-direction: row-reverse;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  
+  /* Align assistant messages to the left */
+  .chat-message.assistant-message {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .markdown-bold {
+    font-weight: bold;
+    /* You can add additional styling here if desired, e.g.: */
+    color: #000;
+  }  
+  
+  /* Responsive Styles */
+  @media (max-width: 768px) {
+    .container {
+      padding: 10px;
+    }
+    
+    #chatWindow {
+      height: 300px;
+      padding: 10px;
+    }
+    
+    .navbar-brand {
+      font-size: 18px;
+    }
+    
+    form input[type="text"],
+    form textarea,
+    form select {
+      font-size: 14px;
+    }
+    
+    .btn-primary,
+    .btn-success,
+    .btn-secondary {
+      font-size: 14px;
+      padding: 8px 16px;
+    }
+  
+    .chat-profile-pic {
+      width: 30px;
+      height: 30px;
+    }
+  
+    .chat-bubble {
+      font-size: 14px;
+      padding: 8px 12px;
+    }
+  }
+  
