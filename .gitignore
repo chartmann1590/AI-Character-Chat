@@ -54,3 +54,6 @@ instance/
 
 # Log files
 *.log
+
+# Ignore local database file
+instance/app.db
