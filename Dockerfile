@@ -1,25 +1,26 @@
 # Start from a small Python base image
 FROM python:3.9-slim-buster
 
-# These environment variables prevent Python from writing out pyc files and buffer
+# Prevent Python from writing pyc files and buffering output
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Create the working directory inside the container
+# Set the working directory
 WORKDIR /usr/src/app
 
-# Copy only requirements first, to leverage Docker's caching for dependency installation
+# Install dependencies
 COPY requirements.txt /usr/src/app/
-
-# Upgrade pip and install dependencies
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the entire project into the container (excluding things listed in .dockerignore)
+# Copy the app into the container
 COPY . /usr/src/app/
 
-# Expose the port your app runs on. Adjust if needed.
+# Expose the port Flask uses
 EXPOSE 5000
 
-# By default, run your application
-CMD ["python", "app.py"]
+# Set Flask environment variable
+ENV FLASK_APP=app.py
+
+# Initialize and apply migrations at startup
+CMD flask db upgrade && python app.py

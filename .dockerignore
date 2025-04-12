@@ -1,16 +1,9 @@
-# Ignore Python cache and compiled files
+venv/
 __pycache__/
 *.pyc
-
-# Ignore local virtual environments
-venv/
-.venv/
-
-# Ignore local environment files if you don’t want them in the image
+instance/
+.webassets-cache
+uploads/
 .env
-.env.*
-
-# Ignore your SQLite DB if you don’t want it copied over
-instance/app.db
-
-# (Optional) If you have other large or sensitive files, add them here
+.git
+.gitignore
