@@ -56,13 +56,46 @@ A Python Flask-based web application that mimics the functionality of Character.
    ```
    Adjust `.env` settings as required.
 
-5. **Run the application**:
+### 📀 Database Setup (Flask-Migrate)
+
+To properly initialize your database, follow these steps:
+
+- **Step 1: Set Environment Variable**
 
    ```bash
-   python app.py
+   export FLASK_APP=app.py
    ```
 
-Visit [http://localhost:5000](http://localhost:5000) in your web browser.
+- **Step 2: Initialize migrations directory (one-time setup)**
+
+   ```bash
+   flask db init
+   ```
+
+- **Step 3: Generate initial migration**
+
+   ```bash
+   flask db migrate -m "Initial migration"
+   ```
+
+- **Step 4: Apply migration to create tables**
+
+   ```bash
+   flask db upgrade
+   ```
+
+After these steps, run:
+
+```bash
+python app.py
+```
+
+This will launch the application, and your database tables will already be set up.
+
+**Important**:
+
+- Each time your database schema changes, repeat Steps 3 and 4 (`flask db migrate` and `flask db upgrade`).
+- The database won't create itself on startup unless explicitly coded (without migrations). Flask-Migrate is preferred for maintainable schema changes.
 
 ---
 
@@ -97,8 +130,6 @@ Access the app at [http://localhost:5000](http://localhost:5000).
 
 ```
 AI-Character-Chat/
-├── instance/
-│   └── app.db
 ├── migrations/
 │   ├── versions/
 │   ├── alembic.ini
