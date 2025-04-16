@@ -5,6 +5,8 @@ from models import ChatRoom, Message, Bot, User
 from ollama_client import get_chat_response, get_available_models
 import os
 from flask_migrate import Migrate
+import json
+import re
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -21,41 +23,53 @@ def room(room_id):
     room = ChatRoom.query.get_or_404(room_id)
     bots = Bot.query.filter_by(room_id=room.id).all()
 
-    # Retrieve user profile information.
+    # Retrieve user profile information (create a default user if none exists).
     user = User.query.first()
     if not user:
         user = User(username="Guest", bio="", age=None, location="", profile_pic=None)
         db.session.add(user)
         db.session.commit()
-    user_profile_info = (f"Name: {user.username}; "
-                         f"Age: {user.age if user.age else 'N/A'}; "
-                         f"Location: {user.location if user.location else 'N/A'}; "
-                         f"Bio: {user.bio or 'No bio provided.'}")
-    
+    user_profile_info = (
+        f"Name: {user.username}; "
+        f"Age: {user.age if user.age else 'N/A'}; "
+        f"Location: {user.location if user.location else 'N/A'}; "
+        f"Bio: {user.bio or 'No bio provided.'}"
+    )
+
     if request.method == 'POST':
         user_msg = request.form['message']
         db.session.add(Message(content=user_msg, sender="User", room=room))
         db.session.commit()
 
         message_history = []
-        # Add the user profile context.
+        # Pass the user profile into the system context.
         message_history.append({
             "role": "system",
             "content": f"User Profile: {user_profile_info}"
         })
-        # Add the bot persona as a system message if a bot is defined.
+        # Add the chatroom scenario so the bot knows its setting.
+        message_history.append({
+            "role": "system",
+            "content": f"Chatroom Scenario: {room.description}"
+        })
+        # Add the bot's persona as a system instruction, if a bot is defined.
         if bots:
             bot = bots[0]
             message_history.append({
                 "role": "system",
-                "content": f"You are {bot.name}. {bot.persona} Bio: {bot.bio or 'No bio provided.'}"
+                "content": (
+                    f"You are {bot.name}. {bot.persona} Bio: {bot.bio or 'No bio provided.'} "
+                    f"From this point forward, ALWAYS respond solely as {bot.name} and never mimic a user."
+                )
             })
         else:
             message_history.append({
                 "role": "system",
-                "content": "You are a helpful assistant."
+                "content": (
+                    "You are a helpful assistant. From this point forward, ALWAYS respond as the assistant and never as the user."
+                )
             })
-        # Append previous conversation messages.
+        # Append all previous conversation messages.
         conv_messages = Message.query.filter_by(room_id=room.id).order_by(Message.timestamp.asc()).all()
         for msg in conv_messages:
             role = "user" if msg.sender == "User" else "assistant"
@@ -71,9 +85,8 @@ def room(room_id):
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
             return jsonify({"bot_message": reply, "sender": bot_sender})
         return redirect(url_for('room', room_id=room.id))
-    
+
     conv_messages = Message.query.filter_by(room_id=room.id).order_by(Message.timestamp.asc()).all()
-    # Poll for available models to populate the edit modal
     available_models = get_available_models()
     return render_template('chatroom.html', room=room, messages=conv_messages, bots=bots, user=user, models=available_models)
 
@@ -104,6 +117,11 @@ def add_room():
 
 @app.route('/add_bot/<int:room_id>', methods=['GET', 'POST'])
 def add_bot(room_id):
+    # Check if a bot already exists for this room
+    if Bot.query.filter_by(room_id=room_id).first():
+        # Optionally, display a message or simply redirect
+        return redirect(url_for('room', room_id=room_id))
+
     if request.method == 'POST':
         name = request.form['name']
         persona = request.form['persona']
@@ -121,11 +139,8 @@ def add_bot(room_id):
         db.session.commit()
         return redirect(url_for('room', room_id=room_id))
     
-    # GET: poll for available models
     try:
         models = get_available_models()
-        # models is a list of objects; we'll extract the name from each.
-        # For example, each model object might have a "name" key.
     except Exception as e:
         models = []
         print("Error retrieving models:", e)
@@ -169,10 +184,16 @@ def generate_bot_bio():
         {
             "role": "system",
             "content": (
-                "You are an expert character designer. Generate a complete chatbot character description based on the following input. "
-                "Your output must be a valid JSON object with two keys: 'name' and 'bio'. Use 'name' for a creative bot name and 'bio' for a detailed character biography, "
-                "including personality, backstory, appearance, and behavior. Do not include any additional text. "
-                "Example output: { \"name\": \"Jasmine\", \"bio\": \"A wise and mysterious girl who provides deep insights...\" }.\n\n"
+                "You are a master storyteller and expert character designer. Based on the following input, generate a completely detailed chatbot character description. "
+                "Your output must be a valid JSON object with two keys: 'name' and 'bio'. "
+                "The 'name' key should contain a creative and memorable name for the bot. "
+                "The 'bio' key must contain an extensive and highly detailed character biography, at least 1000 words long. "
+                "This biography should include a comprehensive personality profile, an in-depth backstory, detailed physical description, and behavior patterns. "
+                "Additionally, incorporate rich background details including the character's hometown, current age, and family history. "
+                "Describe their childhood, formative influences, education, and significant life experiences, including any challenges they have overcome and major turning points. "
+                "Elaborate on their relationships, personal interests, hobbies, ambitions, and dreams to paint a vivid picture of the character. "
+                "Do not include any text outside the JSON object. "
+                "Example output: { \"name\": \"Aurora\", \"bio\": \"Aurora, a spirited 29-year-old from the quaint town of Willowbrook, was raised in a loving, tradition-steeped family. Her childhood was filled with adventures in the nearby woods, inspiring a deep curiosity about the natural world. Throughout her formative years, Aurora faced personal challenges that transformed her into a resilient, empathetic soul. Educated in both the arts and sciences, she quickly emerged as a beacon of hope and creativity within her community. Her relationships, marked by both joy and hardship, have further enriched her character, driving her passion for storytelling and artistic expression. Aurora’s journey from a curious child to a wise and inspirational figure is a testament to her enduring strength, compassion, and relentless pursuit of knowledge...\" }.\n\n"
                 "User input:"
             )
         },
@@ -184,11 +205,91 @@ def generate_bot_bio():
     
     try:
         generated_output = get_chat_response(message_history, model="llama3.2")
-        import json
-        data = json.loads(generated_output)
+        match = re.search(r'\{.*\}', generated_output, re.DOTALL)
+        if not match:
+            raise ValueError("Could not find JSON object in the response.")
+        
+        raw_json = match.group(0)
+        
+        # Attempt to load and fix control characters
+        data = json.loads(raw_json)
         return jsonify(data)
     except Exception as e:
         # If parsing fails, return the raw output to help with debugging.
+        return jsonify({"error": str(e), "raw_output": generated_output}), 500
+
+@app.route('/delete_room/<int:room_id>', methods=['POST'])
+def delete_room(room_id):
+    # Retrieve the room or return 404 if not found.
+    room = ChatRoom.query.get_or_404(room_id)
+
+    # Optionally, delete all associated messages and bots.
+    Message.query.filter_by(room_id=room.id).delete()
+    Bot.query.filter_by(room_id=room.id).delete()
+
+    # Delete the room.
+    db.session.delete(room)
+    db.session.commit()
+    return redirect(url_for('index'))
+
+@app.route('/delete_bot/<int:bot_id>', methods=['POST'])
+def delete_bot(bot_id):
+    # Retrieve the bot or return 404 if not found.
+    bot = Bot.query.get_or_404(bot_id)
+    room_id = bot.room_id  # Save this to redirect back to the room.
+    
+    # Delete the bot.
+    db.session.delete(bot)
+    db.session.commit()
+    return redirect(url_for('room', room_id=room_id))
+
+@app.route('/generate_room_scenario', methods=['POST'])
+def generate_room_scenario():
+    title = request.form.get('title', '')
+    description = request.form.get('description', '')
+    # Combine the fields into one input text.
+    input_text = f"Chatroom Title: {title}\nChatroom Description: {description}"
+    
+    # Build a message history with a system prompt instructing the model
+    # to generate ONLY a JSON object with one key: 'scenario'.
+    message_history = [
+        {
+            "role": "system",
+            "content": (
+                "You are a creative narrative designer. Based on the following chatroom input, generate an immersive, detailed scenario background "
+                "that describes an imaginative setting for a chatbot to live in. "
+                "Return ONLY a valid JSON object with a single key 'scenario'. Do not include any text before or after the JSON output."
+            )
+        },
+        {
+            "role": "user",
+            "content": input_text
+        }
+    ]
+    
+    try:
+        generated_output = get_chat_response(message_history, model="llama3.2").strip()
+        
+        # If the output doesn't start with '{', try to extract the JSON substring.
+        if not generated_output.startswith("{"):
+            start = generated_output.find("{")
+            end = generated_output.rfind("}")
+            if start != -1 and end != -1:
+                generated_output = generated_output[start:end+1]
+        
+        # Fix problematic escape sequences (e.g. replace \' with a simple apostrophe).
+        generated_output = generated_output.replace("\\'", "'")
+        
+        # Ensure balanced braces by counting '{' and '}'.
+        num_open = generated_output.count("{")
+        num_close = generated_output.count("}")
+        if num_close < num_open:
+            generated_output += "}" * (num_open - num_close)
+        
+        data = json.loads(generated_output)
+        # Return just the plain text scenario.
+        return data["scenario"]
+    except Exception as e:
         return jsonify({"error": str(e), "raw_output": generated_output}), 500
 
 if __name__ == '__main__':

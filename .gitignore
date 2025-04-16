@@ -57,3 +57,4 @@ instance/
 
 # Ignore local database file
 instance/app.db
+static/uploads/*

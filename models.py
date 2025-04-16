@@ -6,6 +6,7 @@ class ChatRoom(db.Model):
     title = db.Column(db.String(100))
     description = db.Column(db.String(200))
     messages = db.relationship('Message', backref='room', lazy=True)
+    bots = db.relationship('Bot', backref='chatroom', lazy=True)
 
 class Message(db.Model):
     id = db.Column(db.Integer, primary_key=True)

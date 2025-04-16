@@ -255,3 +255,33 @@
     }
   }
   
+  @media (max-width: 768px) {
+    /* New mobile header for bot profile */
+    .mobile-bot-profile {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      background-color: #f0f0f0;
+      padding: 10px 15px;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1050;
+    }
+    
+    /* Optional: Style the mobile profile image (reuse your chat-profile-pic for consistency) */
+    .mobile-bot-profile img {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      margin-right: 10px;
+    }
+  
+    /* Adjust the chat window so it takes up full screen minus the height of the mobile header */
+    #chatWindow {
+      height: calc(100vh - 70px); /* Adjust "70px" if your header’s height changes */
+      margin-top: 70px; /* Offset chat window content from the fixed header */
+    }
+  }
+  

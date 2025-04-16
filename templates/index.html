@@ -7,13 +7,20 @@
     {% if rooms %}
       <ul class="list-group mb-4">
         {% for room in rooms %}
-          <li class="list-group-item d-flex justify-content-between align-items-center">
+        <li class="list-group-item d-flex justify-content-between align-items-center">
             <a href="{{ url_for('room', room_id=room.id) }}" class="text-decoration-none">
               <strong>{{ room.title }}</strong><br>
               <small class="text-muted">{{ room.description }}</small>
             </a>
-            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('add_bot', room_id=room.id) }}">Add Bot</a>
-          </li>
+            <div class="btn-group">
+              {% if room.bots|length == 0 %}
+                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('add_bot', room_id=room.id) }}">Add Bot</a>
+              {% endif %}
+              <form action="{{ url_for('delete_room', room_id=room.id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this chatroom? All messages and bots will be removed.');" style="display:inline;">
+                <button type="submit" class="btn btn-danger btn-sm">Delete Room</button>
+              </form>
+            </div>
+          </li>          
         {% endfor %}
       </ul>
     {% else %}
@@ -22,7 +29,7 @@
   </div>
   <div class="col-md-4">
     <h2>Create New Chatroom</h2>
-    <form action="{{ url_for('add_room') }}" method="POST">
+    <form action="{{ url_for('add_room') }}" method="POST" id="createRoomForm">
       <div class="mb-3">
         <label for="title" class="form-label">Room Title</label>
         <input type="text" class="form-control" id="title" name="title" required>
@@ -31,8 +38,49 @@
         <label for="description" class="form-label">Room Description</label>
         <textarea class="form-control" id="description" name="description" rows="3" required></textarea>
       </div>
+      <!-- Auto-generate scenario button -->
+      <button type="button" id="autoGenScenario" class="btn btn-secondary mb-2">Auto Generate Scenario</button>
+      <br>
       <button type="submit" class="btn btn-primary">Create Chatroom</button>
     </form>
   </div>
-</div>
+  
+  <script>
+    // When the auto generation button is clicked:
+    document.getElementById('autoGenScenario').addEventListener('click', async function() {
+      // Get current values from the form.
+      const currentTitle = document.getElementById('title').value.trim();
+      const currentDescription = document.getElementById('description').value.trim();
+      if (!currentTitle || !currentDescription) {
+        alert('Please fill in both the title and description before auto generation.');
+        return;
+      }
+      
+      // Prepare form data to send.
+      const formData = new FormData();
+      formData.append('title', currentTitle);
+      formData.append('description', currentDescription);
+  
+      try {
+        const response = await fetch("{{ url_for('generate_room_scenario') }}", {
+          method: "POST",
+          body: formData
+        });
+        
+        // Parse the response as JSON.
+        const data = await response.json();
+        
+        // Update the room title and room description accordingly.
+        if (data.name && data.description) {
+          document.getElementById('title').value = data.name;
+          document.getElementById('description').value = data.description;
+        } else {
+          alert('Auto-generation did not return the expected fields.');
+        }
+      } catch (error) {
+        console.error('Error generating scenario:', error);
+        alert('An error occurred while generating the scenario.');
+      }
+    });
+  </script>  
 {% endblock %}
