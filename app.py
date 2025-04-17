@@ -13,6 +13,10 @@ app.config.from_object(Config)
 db.init_app(app)
 migrate = Migrate(app, db)
 
+# A helper to retrieve the default model from the environment.
+def get_default_model():
+    return os.environ.get("DEFAULT_MODEL", "llama3.2")
+
 @app.route('/')
 def index():
     rooms = ChatRoom.query.all()
@@ -42,17 +46,15 @@ def room(room_id):
         db.session.commit()
 
         message_history = []
-        # Pass the user profile into the system context.
+        # Add system context with user profile and room scenario.
         message_history.append({
             "role": "system",
             "content": f"User Profile: {user_profile_info}"
         })
-        # Add the chatroom scenario so the bot knows its setting.
         message_history.append({
             "role": "system",
             "content": f"Chatroom Scenario: {room.description}"
         })
-        # Add the bot's persona as a system instruction, if a bot is defined.
         if bots:
             bot = bots[0]
             message_history.append({
@@ -69,17 +71,29 @@ def room(room_id):
                     "You are a helpful assistant. From this point forward, ALWAYS respond as the assistant and never as the user."
                 )
             })
-        # Append all previous conversation messages.
+        # Append all previous conversation messages in chronological order.
         conv_messages = Message.query.filter_by(room_id=room.id).order_by(Message.timestamp.asc()).all()
         for msg in conv_messages:
             role = "user" if msg.sender == "User" else "assistant"
             message_history.append({"role": role, "content": msg.content})
         
-        chosen_model = bots[0].model if bots else "llama3.2"
-        reply = get_chat_response(message_history, model=chosen_model)
+        # Use the selected bot's model if available; otherwise fall back to the default model.
+        default_model = get_default_model()  # <-- New: using the .env default model value.
+        chosen_model = bots[0].model if bots else default_model
+        
+        # Optionally, pass in stored conversation context from the room.
+        context = room.conversation_context if room.conversation_context else None
+        reply, new_context = get_chat_response(message_history, model=chosen_model, context=context)
         bot_sender = bots[0].name if bots else "Assistant"
         new_message = Message(content=reply, sender=bot_sender, room=room)
         db.session.add(new_message)
+        
+        # Update the conversation context stored with this room.
+        if new_context is not None:
+            try:
+                room.conversation_context = json.dumps(new_context)
+            except Exception:
+                room.conversation_context = str(new_context)
         db.session.commit()
 
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
@@ -204,14 +218,16 @@ def generate_bot_bio():
     ]
     
     try:
-        generated_output = get_chat_response(message_history, model="llama3.2")
+        # New: Use the default model from .env for creation endpoints.
+        default_model = get_default_model()
+        generated_output = get_chat_response(message_history, model=default_model)
         match = re.search(r'\{.*\}', generated_output, re.DOTALL)
         if not match:
             raise ValueError("Could not find JSON object in the response.")
         
         raw_json = match.group(0)
         
-        # Attempt to load and fix control characters
+        # Attempt to load and fix control characters.
         data = json.loads(raw_json)
         return jsonify(data)
     except Exception as e:
@@ -268,7 +284,8 @@ def generate_room_scenario():
     ]
     
     try:
-        generated_output = get_chat_response(message_history, model="llama3.2").strip()
+        default_model = get_default_model()  # <-- New: use default for room scenario generation.
+        generated_output = get_chat_response(message_history, model=default_model).strip()
         
         # If the output doesn't start with '{', try to extract the JSON substring.
         if not generated_output.startswith("{"):
@@ -277,20 +294,70 @@ def generate_room_scenario():
             if start != -1 and end != -1:
                 generated_output = generated_output[start:end+1]
         
-        # Fix problematic escape sequences (e.g. replace \' with a simple apostrophe).
+        # Fix problematic escape sequences.
         generated_output = generated_output.replace("\\'", "'")
         
-        # Ensure balanced braces by counting '{' and '}'.
+        # Ensure balanced braces.
         num_open = generated_output.count("{")
         num_close = generated_output.count("}")
         if num_close < num_open:
             generated_output += "}" * (num_open - num_close)
         
         data = json.loads(generated_output)
-        # Return just the plain text scenario.
         return data["scenario"]
     except Exception as e:
         return jsonify({"error": str(e), "raw_output": generated_output}), 500
+
+@app.route('/get_bot_feeling/<int:room_id>', methods=['GET'])
+def get_bot_feeling(room_id):
+    room = ChatRoom.query.get_or_404(room_id)
+    conv_messages = Message.query.filter_by(room_id=room.id).order_by(Message.timestamp.asc()).all()
+
+    if not conv_messages:
+        return jsonify({"feeling": "Neutral"})
+
+    message_history = [
+        {
+            "role": "system",
+            "content": (
+                "You are asked to evaluate your current emotional state strictly based on the recent conversation. "
+                "Output exactly one word from the following options: happy, sad, neutral, excited, angry. "
+                "Do not include any additional text."
+            )
+        }
+    ]
+
+    # Use the last 3 messages from the conversation.
+    recent_messages = conv_messages[-3:]
+    for msg in recent_messages:
+        role = "user" if msg.sender == "User" else "assistant"
+        content = msg.content
+        if role == "assistant" and len(content) > 200:
+            content = content[:200]
+        message_history.append({"role": role, "content": content})
+
+    message_history.append({
+        "role": "user",
+        "content": "Based on the above, what is your current feeling? Answer with one word only."
+    })
+
+    print("Message history for bot feeling:", message_history)
+    
+    try:
+        # Retrieve the bot for the room, if available.
+        bot = Bot.query.filter_by(room_id=room.id).first()
+        chosen_model = bot.model if bot else get_default_model()  # <-- Use selected bot's model if available.
+        reply, _ = get_chat_response(message_history, model=chosen_model)
+    except Exception as e:
+        print("Error during get_chat_response:", e)
+        return jsonify({"feeling": "Neutral"})
+
+    feeling = reply.strip()
+    print("Raw bot feeling output:", repr(feeling))
+    if not feeling:
+        feeling = "Neutral"
+
+    return jsonify({"feeling": feeling})
 
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0")
